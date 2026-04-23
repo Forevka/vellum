@@ -259,7 +259,7 @@ Packages the installed component as a portable zip for other machines.
 ## Building from source
 
 ```bash
-git clone --recurse-submodules https://github.com/<you>/vellum.git
+git clone https://github.com/<you>/vellum.git
 cd vellum
 dotnet build
 dotnet test
@@ -272,8 +272,10 @@ Run the CLI from source:
 dotnet run --project src/Vellum.Cli -- ocr sample.pdf
 ```
 
-Submodule: [`external/pdf2svg_poppler_cairo`](https://github.com/Forevka/pdf2svg_poppler_cairo) —
-Poppler/Cairo-backed PDF rasteriser with prebuilt Win-x64 / Linux-x64 natives.
+PDF rasterisation comes from the
+[`PDF2SVG.PopplerCairo.Bindings`](https://www.nuget.org/packages/PDF2SVG.PopplerCairo.Bindings)
+NuGet package (Poppler/Cairo-backed, ships prebuilt Win-x64 / Linux-x64 natives).
+It's pulled in as a transitive dependency — nothing to clone, nothing to build.
 
 ---
 
@@ -302,7 +304,7 @@ Poppler/Cairo-backed PDF rasteriser with prebuilt Win-x64 / Linux-x64 natives.
 ```
 ocr_playground/
 ├── src/
-│   ├── Vellum/                       # library (NuGet: Vellum)
+│   ├── Vellum/                       # library (NuGet: Ocr.Vellum)
 │   │   ├── ScreenAI.cs               # public facade
 │   │   ├── LazyOcrEngine.cs          # DI-friendly lazy wrapper
 │   │   ├── IOcrEngine.cs             # shared abstraction
@@ -315,10 +317,9 @@ ocr_playground/
 │   │   ├── Download/ComponentDownloader.cs
 │   │   ├── Reporting/HtmlReportBuilder.cs
 │   │   └── Platform/PlatformPaths.cs
-│   ├── Vellum.Cli/                   # `vellum` global tool (NuGet: Vellum.Cli)
+│   ├── Vellum.Cli/                   # `vellum` global tool (NuGet: Ocr.Vellum.Cli)
 │   └── native/chromium_stubs/        # C source for Linux link-time stubs
-├── tests/Vellum.Tests/               # xUnit tests (no native DLL required)
-└── external/pdf2svg_poppler_cairo/   # submodule
+└── tests/Vellum.Tests/               # xUnit tests (no native DLL required)
 ```
 
 ---

@@ -1,3 +1,0 @@
-[submodule "external/pdf2svg_poppler_cairo"]
-	path = external/pdf2svg_poppler_cairo
-	url = https://github.com/Forevka/pdf2svg_poppler_cairo.git

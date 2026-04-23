@@ -12,7 +12,7 @@
     <!-- PackageId differs from AssemblyName: "Vellum" was already taken on nuget.org.
          Namespace and `using Vellum;` stay unchanged — only the install-time name shifts. -->
     <PackageId>Ocr.Vellum</PackageId>
-    <Version>0.1.0</Version>
+    <Version>0.1.2</Version>
     <Title>Vellum — Chrome screen-ai OCR wrapper for .NET</Title>
     <Description>
       Direct wrapper around Chrome's screen-ai OCR DLL (chrome_screen_ai.dll / libchromescreenai.so).
@@ -34,6 +34,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="PDF2SVG.PopplerCairo.Bindings" Version="1.0.2" />
     <PackageReference Include="SkiaSharp" Version="3.116.1" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux.NoDependencies" Version="3.116.1" />
     <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="3.116.1" />
@@ -42,47 +43,17 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.0" />
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\..\external\pdf2svg_poppler_cairo\PDF2SVG.PopplerCairo.NetBindings\PDF2SVG.PopplerCairo.Bindings\PDF2SVG.PopplerCairo.Bindings.csproj" />
-  </ItemGroup>
-
-  <!-- Re-pack pdf2svg natives under our own NuGet's runtimes/ tree so a consumer
-       referencing Vellum.nupkg gets everything in one shot. -->
-  <ItemGroup>
-    <_Pdf2SvgWinNatives Include="..\..\external\pdf2svg_poppler_cairo\PDF2SVG.PopplerCairo.NetBindings\PDF2SVG.PopplerCairo.Bindings\windows-x64\*.dll" />
-    <_Pdf2SvgLinNatives Include="..\..\external\pdf2svg_poppler_cairo\PDF2SVG.PopplerCairo.NetBindings\PDF2SVG.PopplerCairo.Bindings\linux-x64\*.so" />
-
-    <None Include="@(_Pdf2SvgWinNatives)"
-          Pack="true"
-          PackagePath="runtimes\win-x64\native\native-svg2pdf\%(Filename)%(Extension)"
-          Visible="false" />
-    <None Include="@(_Pdf2SvgLinNatives)"
-          Pack="true"
-          PackagePath="runtimes\linux-x64\native\native-svg2pdf\%(Filename)%(Extension)"
-          Visible="false" />
-  </ItemGroup>
-
   <!-- Chromium stub shim (Linux only).  Prebuilt committed under runtimes/;
        a rebuild Target tries to regenerate it on Linux build hosts. -->
   <ItemGroup>
-    <None Include="runtimes\linux-x64\native\_chromium_stubs.so"
-          Condition="Exists('runtimes\linux-x64\native\_chromium_stubs.so')"
-          Pack="true"
-          PackagePath="runtimes\linux-x64\native\_chromium_stubs.so"
-          CopyToOutputDirectory="PreserveNewest">
+    <None Include="runtimes\linux-x64\native\_chromium_stubs.so" Condition="Exists('runtimes\linux-x64\native\_chromium_stubs.so')" Pack="true" PackagePath="runtimes\linux-x64\native\_chromium_stubs.so" CopyToOutputDirectory="PreserveNewest">
       <TargetPath>_chromium_stubs.so</TargetPath>
     </None>
 
     <!-- C source ships in the NuGet under content\ so consumers can rebuild if
          their distro's libc is incompatible with the prebuilt .so. -->
-    <None Include="..\native\chromium_stubs\stubs.c"
-          Pack="true"
-          PackagePath="contentFiles\any\any\chromium_stubs\stubs.c"
-          Visible="false" />
-    <None Include="..\native\chromium_stubs\build.sh"
-          Pack="true"
-          PackagePath="contentFiles\any\any\chromium_stubs\build.sh"
-          Visible="false" />
+    <None Include="..\native\chromium_stubs\stubs.c" Pack="true" PackagePath="contentFiles\any\any\chromium_stubs\stubs.c" Visible="false" />
+    <None Include="..\native\chromium_stubs\build.sh" Pack="true" PackagePath="contentFiles\any\any\chromium_stubs\build.sh" Visible="false" />
   </ItemGroup>
 
   <ItemGroup>
@@ -90,12 +61,9 @@
   </ItemGroup>
 
   <!-- Target: on Linux build hosts, compile the stub .so if it's missing. -->
-  <Target Name="BuildChromiumStubs"
-          BeforeTargets="BeforeBuild"
-          Condition="!Exists('runtimes\linux-x64\native\_chromium_stubs.so') And '$([MSBuild]::IsOSPlatform(`Linux`))' == 'true'">
+  <Target Name="BuildChromiumStubs" BeforeTargets="BeforeBuild" Condition="!Exists('runtimes\linux-x64\native\_chromium_stubs.so') And '$([MSBuild]::IsOSPlatform(`Linux`))' == 'true'">
     <MakeDir Directories="runtimes\linux-x64\native" />
-    <Exec Command="cc -shared -fPIC -o runtimes/linux-x64/native/_chromium_stubs.so ../native/chromium_stubs/stubs.c"
-          ContinueOnError="WarnAndContinue" />
+    <Exec Command="cc -shared -fPIC -o runtimes/linux-x64/native/_chromium_stubs.so ../native/chromium_stubs/stubs.c" ContinueOnError="WarnAndContinue" />
   </Target>
 
 </Project>
