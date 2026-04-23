@@ -1,0 +1,34 @@
+<Project>
+  <!--
+    Vellum's PDF rasterizer calls through PDF2SVG.PopplerCairo.Bindings, whose
+    DllImport uses the library name "native-svg2pdf/pdf2svgwrapper". The bindings
+    NuGet ships the native flat at runtimes/<rid>/native/pdf2svgwrapper.{so,dll},
+    so the loader can't find it at runtime.
+
+    Duplicate the native into the expected "native-svg2pdf/" subdirectory during
+    the consumer's build and publish, covering both portable (runtimes/<rid>/)
+    and self-contained (flattened to publish root) layouts.
+  -->
+
+  <Target Name="VellumRelocatePdf2SvgNativeBuild" AfterTargets="AfterBuild">
+    <ItemGroup>
+      <_VellumPdf2SvgBuild Include="$(OutDir)runtimes\**\native\pdf2svgwrapper.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_VellumPdf2SvgBuild)"
+          DestinationFiles="@(_VellumPdf2SvgBuild -> '%(RootDir)%(Directory)native-svg2pdf\%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="VellumRelocatePdf2SvgNativePublish" AfterTargets="Publish">
+    <ItemGroup>
+      <_VellumPdf2SvgPublish Include="$(PublishDir)runtimes\**\native\pdf2svgwrapper.*" />
+      <_VellumPdf2SvgPublishFlat Include="$(PublishDir)pdf2svgwrapper.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_VellumPdf2SvgPublish)"
+          DestinationFiles="@(_VellumPdf2SvgPublish -> '%(RootDir)%(Directory)native-svg2pdf\%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(_VellumPdf2SvgPublishFlat)"
+          DestinationFolder="$(PublishDir)native-svg2pdf"
+          SkipUnchangedFiles="true" />
+  </Target>
+</Project>
