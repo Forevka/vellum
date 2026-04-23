@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <RootNamespace>Vellum.Cli</RootNamespace>
+    <!-- AssemblyName must differ from the library's "Vellum" — case-insensitive file
+         systems (Windows) otherwise overwrite lib\Vellum.dll with the CLI executable,
+         causing a TypeLoadException for every Vellum.* type at runtime.
+         The end-user command is set by ToolCommandName below, so this is invisible. -->
+    <AssemblyName>Vellum.Cli</AssemblyName>
+
+    <!-- Pack as a `dotnet tool install -g Vellum.Cli` tool.  Tools are inherently
+         RID-neutral (framework-dependent), so we omit RuntimeIdentifiers here.
+         Native assets still ship via the transitive Vellum package dependency. -->
+    <IsPackable>true</IsPackable>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>vellum</ToolCommandName>
+    <PackageId>Vellum.Cli</PackageId>
+    <Version>0.1.0</Version>
+    <Description>CLI for Vellum — OCR documents and images using Chrome's screen-ai library.</Description>
+    <PackageTags>ocr;chrome;screen-ai;cli;dotnet-tool</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RollForward>LatestMajor</RollForward>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="9.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Vellum\Vellum.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" Visible="false" />
+  </ItemGroup>
+
+</Project>

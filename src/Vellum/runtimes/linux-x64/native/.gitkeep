@@ -1,0 +1,4 @@
+The prebuilt _chromium_stubs.so is committed here on a Linux build.
+Windows developers: run src/native/chromium_stubs/build.sh from a Linux host
+(e.g. WSL) to regenerate it.  If absent, the library attempts runtime
+compilation via `cc` as a fallback, matching the Python implementation.
