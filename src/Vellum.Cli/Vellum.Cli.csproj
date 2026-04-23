@@ -18,7 +18,7 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>vellum</ToolCommandName>
     <PackageId>Ocr.Vellum.Cli</PackageId>
-    <Version>0.2.0</Version>
+    <Version>0.2.1</Version>
     <Description>CLI for Vellum — OCR documents and images using Chrome's screen-ai library.</Description>
     <PackageTags>ocr;chrome;screen-ai;cli;dotnet-tool</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
@@ -38,5 +38,10 @@
   <ItemGroup>
     <None Include="..\..\README.md" Pack="true" PackagePath="\" Visible="false" />
   </ItemGroup>
+
+  <!-- Local dev: NuGet auto-imports this from `build/<pkg>.targets` on real
+       consumers, but a sibling ProjectReference doesn't trigger that, so we
+       import it explicitly here.  Fixes the DllImport path for pdf2svgwrapper. -->
+  <Import Project="..\Vellum\build\Ocr.Vellum.targets" />
 
 </Project>

@@ -1,34 +1,68 @@
 <Project>
-  <!--
-    Vellum's PDF rasterizer calls through PDF2SVG.PopplerCairo.Bindings, whose
-    DllImport uses the library name "native-svg2pdf/pdf2svgwrapper". The bindings
-    NuGet ships the native flat at runtimes/<rid>/native/pdf2svgwrapper.{so,dll},
-    so the loader can't find it at runtime.
 
-    Duplicate the native into the expected "native-svg2pdf/" subdirectory during
-    the consumer's build and publish, covering both portable (runtimes/<rid>/)
-    and self-contained (flattened to publish root) layouts.
+  <!--
+    Flatten the PDF2SVG.PopplerCairo.Bindings native payload.
+
+    The upstream package (1.0.2) declares
+
+        [DllImport("native-svg2pdf/pdf2svgwrapper", ...)]
+
+    .NET interprets that as a **relative path from the application base
+    directory**, not as a library name eligible for RID-aware probing.
+    The package itself ships the natives FLAT under
+    `runtimes/<rid>/native/*.{dll,so}` — there is no `native-svg2pdf/`
+    sub-folder.  So when consumed via `<PackageReference>`, NuGet copies the
+    natives to `$(OutDir)runtimes/<rid>/native/*` and the DllImport then
+    fails to find them at `$(OutDir)native-svg2pdf/`.
+
+    On Windows, `pdf2svgwrapper.dll` additionally depends on ~40 other DLLs
+    (cairo, poppler, glib, boost, …).  The loader searches the directory of
+    the loaded DLL for those imports, so every native file from the package
+    has to sit *next to* pdf2svgwrapper.dll inside `native-svg2pdf/`.
+
+    These targets copy every runtimes/<rid>/native/* file into a sibling
+    `native-svg2pdf/` folder next to the app binary, on both Build and Publish.
+    They're no-ops for projects that don't transitively pull in the bindings.
   -->
 
-  <Target Name="VellumRelocatePdf2SvgNativeBuild" AfterTargets="AfterBuild">
+  <Target Name="VellumFlattenPdf2SvgNatives_Build" AfterTargets="Build">
     <ItemGroup>
-      <_VellumPdf2SvgBuild Include="$(OutDir)runtimes\**\native\pdf2svgwrapper.*" />
+      <_VellumPdf2SvgFiles Include="$(OutDir)runtimes\win-x64\native\*.dll" />
+      <_VellumPdf2SvgFiles Include="$(OutDir)runtimes\linux-x64\native\*.so" />
     </ItemGroup>
-    <Copy SourceFiles="@(_VellumPdf2SvgBuild)"
-          DestinationFiles="@(_VellumPdf2SvgBuild -> '%(RootDir)%(Directory)native-svg2pdf\%(Filename)%(Extension)')"
-          SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(_VellumPdf2SvgFiles)"
+          DestinationFolder="$(OutDir)native-svg2pdf"
+          SkipUnchangedFiles="true"
+          Condition="@(_VellumPdf2SvgFiles->Count()) &gt; 0" />
   </Target>
 
-  <Target Name="VellumRelocatePdf2SvgNativePublish" AfterTargets="Publish">
+  <Target Name="VellumFlattenPdf2SvgNatives_Publish" AfterTargets="Publish">
+    <!-- Portable publish: runtimes/ tree is preserved. -->
     <ItemGroup>
-      <_VellumPdf2SvgPublish Include="$(PublishDir)runtimes\**\native\pdf2svgwrapper.*" />
-      <_VellumPdf2SvgPublishFlat Include="$(PublishDir)pdf2svgwrapper.*" />
+      <_VellumPdf2SvgPublish Include="$(PublishDir)runtimes\win-x64\native\*.dll" />
+      <_VellumPdf2SvgPublish Include="$(PublishDir)runtimes\linux-x64\native\*.so" />
     </ItemGroup>
     <Copy SourceFiles="@(_VellumPdf2SvgPublish)"
-          DestinationFiles="@(_VellumPdf2SvgPublish -> '%(RootDir)%(Directory)native-svg2pdf\%(Filename)%(Extension)')"
-          SkipUnchangedFiles="true" />
-    <Copy SourceFiles="@(_VellumPdf2SvgPublishFlat)"
           DestinationFolder="$(PublishDir)native-svg2pdf"
-          SkipUnchangedFiles="true" />
+          SkipUnchangedFiles="true"
+          Condition="@(_VellumPdf2SvgPublish->Count()) &gt; 0" />
+
+    <!-- Self-contained publish flattens runtimes/ into the publish root.
+         pdf2svgwrapper still needs to live under native-svg2pdf/; its dep
+         DLLs are loaded by name from the same directory (Windows) or
+         via rpath-ish search (Linux), both of which include the loaded
+         DLL's own directory.  So we copy every pdf2svg-adjacent native
+         there; the originals in the root are harmless duplicates. -->
+    <ItemGroup>
+      <_VellumPdf2SvgFlatRoot Include="$(PublishDir)*.dll" Condition="'$([MSBuild]::IsOsPlatform(`Windows`))' == 'true'" />
+      <_VellumPdf2SvgFlatRoot Include="$(PublishDir)*.so"  Condition="'$([MSBuild]::IsOsPlatform(`Linux`))' == 'true'" />
+    </ItemGroup>
+    <!-- Only trigger the flat-root copy when runtimes/ wasn't preserved — otherwise
+         the portable-publish branch above has already handled it. -->
+    <Copy SourceFiles="@(_VellumPdf2SvgFlatRoot)"
+          DestinationFolder="$(PublishDir)native-svg2pdf"
+          SkipUnchangedFiles="true"
+          Condition="'@(_VellumPdf2SvgPublish)' == '' And Exists('$(PublishDir)pdf2svgwrapper.dll') Or Exists('$(PublishDir)pdf2svgwrapper.so')" />
   </Target>
+
 </Project>
