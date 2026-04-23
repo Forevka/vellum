@@ -6,6 +6,8 @@ Loads Google Chrome's built-in OCR engine (`chrome_screen_ai.dll` /
 and images — no browser window, no Tesseract, no cloud API.
 
 A .NET port of [sergiocorreia/clv-locro](https://github.com/sergiocorreia/clv-locro).
+NuGet: [`Ocr.Vellum`](https://www.nuget.org/packages/Ocr.Vellum) (library) and
+[`Ocr.Vellum.Cli`](https://www.nuget.org/packages/Ocr.Vellum.Cli) (global tool).
 
 > **Note — the native Chrome OCR library is not redistributed.** You need either a local
 > Chrome install (the wrapper finds it automatically) or a one-time `vellum download`
@@ -32,13 +34,16 @@ A .NET port of [sergiocorreia/clv-locro](https://github.com/sergiocorreia/clv-lo
 ### Library
 
 ```bash
-dotnet add package Vellum
+dotnet add package Ocr.Vellum
 ```
+
+The namespace is `Vellum` — `using Vellum;` — the `Ocr.` prefix is just the
+NuGet package id (the plain `Vellum` id was already taken).
 
 ### CLI (global tool)
 
 ```bash
-dotnet tool install -g Vellum.Cli
+dotnet tool install -g Ocr.Vellum.Cli
 ```
 
 Exposes a `vellum` command with three subcommands: `ocr`, `download`, `export`.
@@ -258,7 +263,7 @@ git clone --recurse-submodules https://github.com/<you>/vellum.git
 cd vellum
 dotnet build
 dotnet test
-dotnet pack -c Release           # → artifacts/nupkg/Vellum.*.nupkg + Vellum.Cli.*.nupkg
+dotnet pack -c Release           # → Ocr.Vellum.*.nupkg + Ocr.Vellum.Cli.*.nupkg
 ```
 
 Run the CLI from source:
