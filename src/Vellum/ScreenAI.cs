@@ -24,6 +24,24 @@ public sealed class ScreenAI : IOcrEngine
     /// <inheritdoc />
     public Task EnsureReadyAsync(CancellationToken ct = default) => Task.CompletedTask;
 
+    /// <inheritdoc />
+    public Task<OcrResult> OcrAsync(string file, IEnumerable<int>? pages = null, CancellationToken ct = default) =>
+        Task.Run(() => Ocr(file, pages), ct);
+
+    /// <inheritdoc />
+    public Task<OcrPage> OcrBitmapAsync(SKBitmap bitmap, CancellationToken ct = default) =>
+        Task.Run(() => OcrBitmap(bitmap), ct);
+
+    /// <inheritdoc />
+    public Task<OcrResult> OcrToSearchablePdfAsync(
+        string inputPdf, string outputPdf, IEnumerable<int>? pages = null, CancellationToken ct = default) =>
+        Task.Run(() => OcrToSearchablePdf(inputPdf, outputPdf, pages), ct);
+
+    /// <inheritdoc />
+    public Task<OcrResult> OcrToHtmlAsync(
+        string file, string outputHtml, IEnumerable<int>? pages = null, string? title = null, CancellationToken ct = default) =>
+        Task.Run(() => OcrToHtml(file, outputHtml, pages, title), ct);
+
 
     private readonly ILogger _log;
     private readonly ScreenAiNative _native;

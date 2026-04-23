@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Vellum.Cli/Vellum.Cli.csproj" />
+    <Project Path="src/Vellum/Vellum.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Vellum.Tests/Vellum.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -124,7 +124,14 @@ app.MapPost("/ocr", async (IOcrEngine ocr, IFormFile file, CancellationToken ct)
     await using (var fs = File.Create(tmp))
         await file.CopyToAsync(fs, ct);
 
-    try   { return Results.Text(ocr.Ocr(tmp).ToText()); }
+    try
+    {
+        // OcrAsync awaits the serialisation semaphore non-blockingly and
+        // runs the CPU-bound OCR work on the thread pool — the request
+        // thread is returned while the native DLL is busy.
+        var result = await ocr.OcrAsync(tmp, ct: ct);
+        return Results.Text(result.ToText());
+    }
     finally { File.Delete(tmp); }
 });
 ```
@@ -248,6 +255,11 @@ Packages the installed component as a portable zip for other machines.
 - The native library spawns its own worker threads but **does not document
   concurrent `PerformOCR` safety**. Vellum's `LazyOcrEngine` serialises calls
   under a `SemaphoreSlim` by default (`VellumOptions.SerializeCalls = true`).
+  Concurrent requests queue up in FIFO order; **they do not crash**, but
+  throughput is effectively one OCR at a time per process. The async methods
+  (`OcrAsync`, `OcrBitmapAsync`, …) use `WaitAsync` + `Task.Run`, so queued
+  requests do not tie up thread-pool threads. Scale horizontally (multiple
+  processes behind a load balancer) when one process isn't enough.
 - The native library keeps **process-global state**. Do not create and
   dispose multiple `ScreenAI` instances in the same process — the second
   `InitOCR` will crash. Use `AddVellumOcr()` (singleton) in DI.

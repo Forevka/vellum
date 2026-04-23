@@ -38,4 +38,25 @@ public interface IOcrEngine : IDisposable
 
     /// <summary>OCR a file and produce a self-contained interactive HTML report.</summary>
     OcrResult OcrToHtml(string file, string outputHtml, IEnumerable<int>? pages = null, string? title = null);
+
+    // -----------------------------------------------------------------------
+    // Async variants — recommended in ASP.NET Core hot paths.
+    // The OCR work itself is CPU-bound; these methods free the caller's
+    // thread while waiting on the internal serialisation lock, then execute
+    // the CPU work on the thread pool so the request thread is returned.
+    // -----------------------------------------------------------------------
+
+    /// <summary>Async version of <see cref="Ocr"/>.</summary>
+    Task<OcrResult> OcrAsync(string file, IEnumerable<int>? pages = null, CancellationToken ct = default);
+
+    /// <summary>Async version of <see cref="OcrBitmap"/>.</summary>
+    Task<OcrPage> OcrBitmapAsync(SKBitmap bitmap, CancellationToken ct = default);
+
+    /// <summary>Async version of <see cref="OcrToSearchablePdf"/>.</summary>
+    Task<OcrResult> OcrToSearchablePdfAsync(
+        string inputPdf, string outputPdf, IEnumerable<int>? pages = null, CancellationToken ct = default);
+
+    /// <summary>Async version of <see cref="OcrToHtml"/>.</summary>
+    Task<OcrResult> OcrToHtmlAsync(
+        string file, string outputHtml, IEnumerable<int>? pages = null, string? title = null, CancellationToken ct = default);
 }

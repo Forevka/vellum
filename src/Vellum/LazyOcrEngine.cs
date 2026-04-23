@@ -80,6 +80,20 @@ public sealed class LazyOcrEngine : IOcrEngine
     public OcrResult OcrToHtml(string file, string outputHtml, IEnumerable<int>? pages = null, string? title = null) =>
         Run(e => e.OcrToHtml(file, outputHtml, pages, title));
 
+    public Task<OcrResult> OcrAsync(string file, IEnumerable<int>? pages = null, CancellationToken ct = default) =>
+        RunAsync(e => e.Ocr(file, pages), ct);
+
+    public Task<OcrPage> OcrBitmapAsync(SKBitmap bitmap, CancellationToken ct = default) =>
+        RunAsync(e => e.OcrBitmap(bitmap), ct);
+
+    public Task<OcrResult> OcrToSearchablePdfAsync(
+        string inputPdf, string outputPdf, IEnumerable<int>? pages = null, CancellationToken ct = default) =>
+        RunAsync(e => e.OcrToSearchablePdf(inputPdf, outputPdf, pages), ct);
+
+    public Task<OcrResult> OcrToHtmlAsync(
+        string file, string outputHtml, IEnumerable<int>? pages = null, string? title = null, CancellationToken ct = default) =>
+        RunAsync(e => e.OcrToHtml(file, outputHtml, pages, title), ct);
+
     // ---------------------------------------------------------------------
     // Initialisation
     // ---------------------------------------------------------------------
@@ -165,6 +179,35 @@ public sealed class LazyOcrEngine : IOcrEngine
         _callLock.Wait();
         try { return op(engine); }
         finally { _callLock.Release(); }
+    }
+
+    /// <summary>
+    /// Async equivalent of <see cref="Run{T}"/>:
+    /// <list type="bullet">
+    ///   <item>awaits lazy init without blocking the caller thread,</item>
+    ///   <item>awaits the serialisation semaphore via <c>WaitAsync</c>,</item>
+    ///   <item>off-loads the CPU-bound OCR call to the thread pool so the
+    ///         caller (e.g. an ASP.NET request thread) is returned while the
+    ///         native DLL is busy.</item>
+    /// </list>
+    /// </summary>
+    private async Task<T> RunAsync<T>(Func<ScreenAI, T> op, CancellationToken ct)
+    {
+        await EnsureReadyAsync(ct).ConfigureAwait(false);
+        var engine = _inner!;
+
+        if (_callLock is null)
+            return await Task.Run(() => op(engine), ct).ConfigureAwait(false);
+
+        await _callLock.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            return await Task.Run(() => op(engine), ct).ConfigureAwait(false);
+        }
+        finally
+        {
+            _callLock.Release();
+        }
     }
 
     private void ThrowIfDisposed()

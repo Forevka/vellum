@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using Vellum.Platform;
 using Microsoft.Extensions.Logging;
@@ -13,7 +14,9 @@ internal sealed class ScreenAiNative : IDisposable
 {
     private readonly ILogger _log;
     private readonly string _modelDir;
-    private readonly Dictionary<string, byte[]> _fileCache = new(StringComparer.Ordinal);
+    // Concurrent because the native library may invoke the file callbacks from
+    // its own worker threads during a single PerformOCR call (below our semaphore).
+    private readonly ConcurrentDictionary<string, byte[]> _fileCache = new(StringComparer.Ordinal);
     private readonly IntPtr _handle;
     private readonly GetFileSizeFn _sizeFn;     // keepalive
     private readonly GetFileContentFn _contentFn; // keepalive
@@ -211,24 +214,23 @@ internal sealed class ScreenAiNative : IDisposable
         if (n > 0) Marshal.Copy(data, 0, buffer, n);
     }
 
-    private byte[] ReadModelFile(string relativePath)
-    {
-        if (_fileCache.TryGetValue(relativePath, out var cached))
-            return cached;
-
-        var fullPath = Path.Combine(_modelDir, relativePath);
-        if (!File.Exists(fullPath))
+    private byte[] ReadModelFile(string relativePath) =>
+        // GetOrAdd is atomic enough for our purposes — the value factory can still
+        // race on first access for the same key, but both racers return byte[] of
+        // identical content (same file on disk).  The worst-case cost is an extra
+        // File.ReadAllBytes, not corruption.
+        _fileCache.GetOrAdd(relativePath, rel =>
         {
-            _log.LogWarning("Model file not found: {FullPath}", fullPath);
-            _fileCache[relativePath] = [];
-            return [];
-        }
-
-        var data = File.ReadAllBytes(fullPath);
-        _fileCache[relativePath] = data;
-        _log.LogDebug("Read model file: {RelativePath} ({Bytes} bytes)", relativePath, data.Length);
-        return data;
-    }
+            var fullPath = Path.Combine(_modelDir, rel);
+            if (!File.Exists(fullPath))
+            {
+                _log.LogWarning("Model file not found: {FullPath}", fullPath);
+                return [];
+            }
+            var data = File.ReadAllBytes(fullPath);
+            _log.LogDebug("Read model file: {RelativePath} ({Bytes} bytes)", rel, data.Length);
+            return data;
+        });
 
     // ---------------------------------------------------------------------
     // Native stderr chatter suppression (best-effort via env vars).
