@@ -12,7 +12,7 @@
     <!-- PackageId differs from AssemblyName: "Vellum" was already taken on nuget.org.
          Namespace and `using Vellum;` stay unchanged — only the install-time name shifts. -->
     <PackageId>Ocr.Vellum</PackageId>
-    <Version>0.2.3</Version>
+    <Version>0.2.4</Version>
     <Title>Vellum — Chrome screen-ai OCR wrapper for .NET</Title>
     <Description>
       Direct wrapper around Chrome's screen-ai OCR DLL (chrome_screen_ai.dll / libchromescreenai.so).

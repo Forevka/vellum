@@ -49,8 +49,7 @@ internal static class PdfRasterizer
                     throw new InvalidOperationException(
                         "pdf2svg returned SVG data despite isForceToPng=true; cannot OCR vector data.");
 
-                var pngBytes = page.Data.ToArray();
-                var bmp = SkiaImageOps.DecodeBitmap(pngBytes);
+                var bmp = DecodeOntoWhite(page.Data);
 
                 // We don't have direct access to the PDF point size here; derive
                 // it from 300 DPI → 1 point = 300/72 px.  Close enough for overlay
@@ -70,9 +69,40 @@ internal static class PdfRasterizer
             }
         }
     }
+
+    /// <summary>
+    /// Decode the page PNG and flatten it onto a fully opaque white background.
+    /// PDF pages rendered by pdf2svg can have a transparent background; screen_ai
+    /// misses glyphs on those pages, so we composite onto white before OCR.
+    /// Returns an opaque BGRA bitmap owned by the caller.
+    /// </summary>
+    private static SKBitmap DecodeOntoWhite(MemoryStream pngStream)
+    {
+        pngStream.Position = 0;
+        using var data = SKData.Create(pngStream);
+        using var codec = SKCodec.Create(data)
+            ?? throw new InvalidDataException("Could not decode page image — unrecognised format.");
+
+        var sourceInfo = new SKImageInfo(
+            codec.Info.Width, codec.Info.Height, SKColorType.Bgra8888, SKAlphaType.Premul);
+        using var source = new SKBitmap(sourceInfo);
+        var result = codec.GetPixels(sourceInfo, source.GetPixels());
+        if (result != SKCodecResult.Success && result != SKCodecResult.IncompleteInput)
+            throw new InvalidDataException($"SKCodec.GetPixels failed: {result}");
+
+        var target = new SKBitmap(new SKImageInfo(
+            codec.Info.Width, codec.Info.Height, SKColorType.Bgra8888, SKAlphaType.Opaque));
+        using (var canvas = new SKCanvas(target))
+        {
+            canvas.Clear(SKColors.White);
+            canvas.DrawBitmap(source, 0, 0);
+        }
+        return target;
+    }
 }
 
 internal sealed record RasterizedPdfPage(int PageNumber, SKBitmap Bitmap, float PointsWidth, float PointsHeight) : IDisposable
 {
     public void Dispose() => Bitmap.Dispose();
 }
+
