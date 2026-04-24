@@ -76,12 +76,25 @@ internal static class PdfRasterizer
     /// misses glyphs on those pages, so we composite onto white before OCR.
     /// Returns an opaque BGRA bitmap owned by the caller.
     /// </summary>
-    // Hand decode + composite to Skia as one operation: SKBitmap.Decode lets the
-    // native pick its own color/alpha type, which is the only path that survives
-    // the Linux NoDependencies native's inconsistent SKAlphaType.Premul honoring.
     private static SKBitmap DecodeOntoWhite(MemoryStream pngStream)
     {
         pngStream.Position = 0;
+
+        // Set VELLUM_RASTER_DUMP=<dir> to dump pre/post-composite PNGs for
+        // each page — handy when debugging platform-specific rasterisation.
+        var dumpDir = Environment.GetEnvironmentVariable("VELLUM_RASTER_DUMP");
+        if (!string.IsNullOrEmpty(dumpDir))
+        {
+            try
+            {
+                Directory.CreateDirectory(dumpDir);
+                var stamp = DateTime.UtcNow.ToString("HHmmss_fff");
+                File.WriteAllBytes(Path.Combine(dumpDir, $"vellum_input_{stamp}.png"), pngStream.ToArray());
+            }
+            catch (Exception ex) { Console.Error.WriteLine($"vellum.dump input failed: {ex.Message}"); }
+            pngStream.Position = 0;
+        }
+
         using var source = SKBitmap.Decode(pngStream)
             ?? throw new InvalidDataException("Could not decode page image — unrecognised format.");
 
@@ -90,6 +103,21 @@ internal static class PdfRasterizer
         using var canvas = new SKCanvas(target);
         canvas.Clear(SKColors.White);
         canvas.DrawBitmap(source, 0, 0);
+
+        if (!string.IsNullOrEmpty(dumpDir))
+        {
+            try
+            {
+                var stamp = DateTime.UtcNow.ToString("HHmmss_fff");
+                var path = Path.Combine(dumpDir, $"vellum_output_{stamp}.png");
+                using var img = SKImage.FromBitmap(target);
+                using var encoded = img.Encode(SKEncodedImageFormat.Png, 100);
+                using var fs = File.Create(path);
+                encoded.SaveTo(fs);
+            }
+            catch (Exception ex) { Console.Error.WriteLine($"vellum.dump output failed: {ex.Message}"); }
+        }
+
         return target;
     }
 }

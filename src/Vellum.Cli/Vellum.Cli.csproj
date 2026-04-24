@@ -18,7 +18,7 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>vellum</ToolCommandName>
     <PackageId>Ocr.Vellum.Cli</PackageId>
-    <Version>0.2.5</Version>
+    <Version>0.2.6</Version>
     <Description>CLI for Vellum — OCR documents and images using Chrome's screen-ai library.</Description>
     <PackageTags>ocr;chrome;screen-ai;cli;dotnet-tool</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
