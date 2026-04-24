@@ -76,27 +76,20 @@ internal static class PdfRasterizer
     /// misses glyphs on those pages, so we composite onto white before OCR.
     /// Returns an opaque BGRA bitmap owned by the caller.
     /// </summary>
+    // Hand decode + composite to Skia as one operation: SKBitmap.Decode lets the
+    // native pick its own color/alpha type, which is the only path that survives
+    // the Linux NoDependencies native's inconsistent SKAlphaType.Premul honoring.
     private static SKBitmap DecodeOntoWhite(MemoryStream pngStream)
     {
         pngStream.Position = 0;
-        using var data = SKData.Create(pngStream);
-        using var codec = SKCodec.Create(data)
+        using var source = SKBitmap.Decode(pngStream)
             ?? throw new InvalidDataException("Could not decode page image — unrecognised format.");
 
-        var sourceInfo = new SKImageInfo(
-            codec.Info.Width, codec.Info.Height, SKColorType.Bgra8888, SKAlphaType.Premul);
-        using var source = new SKBitmap(sourceInfo);
-        var result = codec.GetPixels(sourceInfo, source.GetPixels());
-        if (result != SKCodecResult.Success && result != SKCodecResult.IncompleteInput)
-            throw new InvalidDataException($"SKCodec.GetPixels failed: {result}");
-
         var target = new SKBitmap(new SKImageInfo(
-            codec.Info.Width, codec.Info.Height, SKColorType.Bgra8888, SKAlphaType.Opaque));
-        using (var canvas = new SKCanvas(target))
-        {
-            canvas.Clear(SKColors.White);
-            canvas.DrawBitmap(source, 0, 0);
-        }
+            source.Width, source.Height, SKColorType.Bgra8888, SKAlphaType.Opaque));
+        using var canvas = new SKCanvas(target);
+        canvas.Clear(SKColors.White);
+        canvas.DrawBitmap(source, 0, 0);
         return target;
     }
 }
