@@ -47,6 +47,10 @@ internal sealed class ScreenAiNative : IDisposable
 
         SuppressNativeStderrEnvVars();
         ChromiumStubs.Ensure(modelDir, _log);
+        // ScreenAI uses Intel AMX tile kernels on Sapphire-Rapids-class CPUs;
+        // Linux requires a per-process opt-in before the first AMX instruction
+        // or it SIGILLs. Request it now, before InitOcr/PerformOcr run.
+        AmxPermission.Ensure(_log);
 
         _log.LogInformation("Loading {LibPath}", libPath);
         _handle = NativeLibrary.Load(libPath);
