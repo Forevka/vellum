@@ -46,14 +46,25 @@ public sealed class ScreenAI : IOcrEngine
     private readonly ILogger _log;
     private readonly ScreenAiNative _native;
     private readonly uint _maxDim;
+    private readonly IPdfRasterizer _rasterizer;
 
     /// <summary>
     /// Create an OCR engine, loading the screen-ai library from <paramref name="modelDir"/>
     /// (or auto-discovering it from Chrome / Vellum's local model cache).
+    /// PDFs are rendered with <see cref="PdfRasterizerKind.Pdf2Svg"/>.
     /// </summary>
     public ScreenAI(string? modelDir = null, bool lightMode = false, ILogger<ScreenAI>? log = null)
+        : this(modelDir, lightMode, log, PdfRasterizerKind.Pdf2Svg)
+    {
+    }
+
+    /// <summary>
+    /// Create an OCR engine that renders PDFs with the given <paramref name="pdfRasterizer"/>.
+    /// </summary>
+    public ScreenAI(string? modelDir, bool lightMode, ILogger<ScreenAI>? log, PdfRasterizerKind pdfRasterizer)
     {
         _log = log ?? NullLogger<ScreenAI>.Instance;
+        _rasterizer = PdfRasterizers.Create(pdfRasterizer);
         modelDir ??= FindScreenAiDir();
 
         _native = new ScreenAiNative(modelDir, _log);
@@ -135,7 +146,7 @@ public sealed class ScreenAI : IOcrEngine
 
         if (ext == ".pdf")
         {
-            foreach (var raster in PdfRasterizer.Rasterize(file, (int)_maxDim, pageSet))
+            foreach (var raster in _rasterizer.Rasterize(file, (int)_maxDim, pageSet))
             {
                 try
                 {
@@ -178,7 +189,7 @@ public sealed class ScreenAI : IOcrEngine
         var ocrPages = new List<OcrPage>();
 
         // Rasterize + OCR each requested page, then overlay text onto the matching PdfSharp page.
-        var rasterPages = PdfRasterizer.Rasterize(inputPdf, (int)_maxDim, pageSet)
+        var rasterPages = _rasterizer.Rasterize(inputPdf, (int)_maxDim, pageSet)
             .ToDictionary(p => p.PageNumber, p => p);
 
         try
@@ -258,7 +269,7 @@ public sealed class ScreenAI : IOcrEngine
         var pageSet = pages is null ? null : new HashSet<int>(pages);
         var ocrPages = new List<OcrPage>();
 
-        foreach (var raster in PdfRasterizer.Rasterize(path, (int)_maxDim, pageSet))
+        foreach (var raster in _rasterizer.Rasterize(path, (int)_maxDim, pageSet))
         {
             try
             {

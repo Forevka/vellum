@@ -8,14 +8,14 @@ namespace Vellum.Imaging;
 /// .NET bindings with <c>isForceToPng=true</c>, so every page comes back as PNG
 /// bytes regardless of whether it could have been SVG — OCR needs a bitmap.
 /// </summary>
-internal static class PdfRasterizer
+internal sealed class Pdf2SvgRasterizer : IPdfRasterizer
 {
     /// <summary>
     /// Yield <c>(pageNumber, bitmap, pdfPointSize)</c> for each requested page.
     /// Disposes the internal document handle when the enumeration ends (or the
     /// consumer disposes it early).
     /// </summary>
-    public static IEnumerable<RasterizedPdfPage> Rasterize(
+    public IEnumerable<RasterizedPdfPage> Rasterize(
         string pdfPath,
         int maxDim,
         IReadOnlySet<int>? pages = null)
@@ -121,9 +121,3 @@ internal static class PdfRasterizer
         return target;
     }
 }
-
-internal sealed record RasterizedPdfPage(int PageNumber, SKBitmap Bitmap, float PointsWidth, float PointsHeight) : IDisposable
-{
-    public void Dispose() => Bitmap.Dispose();
-}
-

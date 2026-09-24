@@ -33,4 +33,11 @@ public sealed class VellumOptions
     /// verified concurrent safety on your target library version.
     /// </summary>
     public bool SerializeCalls { get; set; } = true;
+
+    /// <summary>
+    /// Engine used to render PDF pages before OCR. Default: <see cref="PdfRasterizerKind.Pdf2Svg"/>
+    /// (unchanged behaviour). Set <see cref="PdfRasterizerKind.Pdfium"/> for long-running
+    /// processes: Poppler/Cairo retains native memory on PDFs with Type 3 fonts.
+    /// </summary>
+    public PdfRasterizerKind PdfRasterizer { get; set; } = PdfRasterizerKind.Pdf2Svg;
 }
