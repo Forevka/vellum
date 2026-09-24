@@ -8,16 +8,11 @@ namespace Vellum.Imaging;
 /// Rasterises PDF pages with PDFium, rendering each page straight into an opaque
 /// BGRA <see cref="SKBitmap"/> at the size OCR will consume (no PNG round-trip).
 /// </summary>
-/// <remarks>
-/// This replaced a Poppler/Cairo backend whose Type 3 font glyph caches live in
-/// Cairo's process-global state and outlive the document — gigabytes per
-/// document on some filings, reclaimable only by ending the process.
-/// </remarks>
-internal static class PdfRasterizer
+internal sealed class PdfiumRasterizer : IPdfRasterizer
 {
     private const float MaxDpi = 300f;
 
-    public static IEnumerable<RasterizedPdfPage> Rasterize(
+    public IEnumerable<RasterizedPdfPage> Rasterize(
         string pdfPath,
         int maxDim,
         IReadOnlySet<int>? pages = null)
@@ -109,6 +104,7 @@ internal static class PdfRasterizer
                     PdfiumNative.FPDFBitmap_Destroy(pdfBmp);
                 }
 
+                DumpIfRequested(bmp, pageNumber);
                 return new RasterizedPdfPage(pageNumber, bmp, wPt, hPt);
             }
             finally
@@ -117,9 +113,25 @@ internal static class PdfRasterizer
             }
         }
     }
-}
 
-internal sealed record RasterizedPdfPage(int PageNumber, SKBitmap Bitmap, float PointsWidth, float PointsHeight) : IDisposable
-{
-    public void Dispose() => Bitmap.Dispose();
+    /// <summary>
+    /// Set VELLUM_RASTER_DUMP=&lt;dir&gt; to save each rendered page as the PNG that is handed to OCR.
+    /// </summary>
+    private static void DumpIfRequested(SKBitmap bmp, int pageNumber)
+    {
+        var dumpDir = Environment.GetEnvironmentVariable("VELLUM_RASTER_DUMP");
+        if (string.IsNullOrEmpty(dumpDir)) return;
+
+        try
+        {
+            Directory.CreateDirectory(dumpDir);
+            var stamp = DateTime.UtcNow.ToString("HHmmss_fff");
+            var path = Path.Combine(dumpDir, $"vellum_output_{stamp}_p{pageNumber}.png");
+            using var img = SKImage.FromBitmap(bmp);
+            using var encoded = img.Encode(SKEncodedImageFormat.Png, 100);
+            using var fs = File.Create(path);
+            encoded.SaveTo(fs);
+        }
+        catch (Exception ex) { Console.Error.WriteLine($"vellum.dump output failed: {ex.Message}"); }
+    }
 }

@@ -150,7 +150,7 @@ public sealed class LazyOcrEngine : IOcrEngine
         }
 
         var screenAiLogger = _loggerFactory.CreateLogger<ScreenAI>();
-        return new ScreenAI(modelDir, _options.LightMode, screenAiLogger);
+        return new ScreenAI(modelDir, _options.LightMode, screenAiLogger, _options.PdfRasterizer);
     }
 
     private static string? TryFindModelDir()

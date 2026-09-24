@@ -109,9 +109,21 @@ builder.Services.AddVellumOcr(options =>
     options.LightMode       = false;   // true = smaller, faster model
     options.AutoDownload    = true;    // copy from Chrome on first use if missing
     options.SerializeCalls  = true;    // (default) lock around PerformOCR for thread safety
+    options.PdfRasterizer   = PdfRasterizerKind.Pdfium;  // default: Pdf2Svg — see below
     // options.ModelDir     = "/opt/screen_ai/140.20";   // pin explicitly if you want
 });
 ```
+
+### Choosing the PDF rasterizer
+
+PDF pages are rendered to bitmaps before OCR. Two engines are available:
+
+| `PdfRasterizer` | Engine | Notes |
+|---|---|---|
+| `Pdf2Svg` (default) | Poppler/Cairo via `PDF2SVG.PopplerCairo.Bindings` | Unchanged behaviour. Pages with **Type 3 fonts** can grow Cairo's process-global glyph cache by hundreds of MB per page, and that memory is not released until the process exits. |
+| `Pdfium` | PDFium via `bblanchon.PDFium.*` | Renders straight to the OCR size, never renders pages outside the requested range, releases all memory when the document closes. Recommended for long-running services. |
+
+Without DI: `new ScreenAI(modelDir, lightMode: false, log: null, PdfRasterizerKind.Pdfium)`.
 
 Inject and use anywhere:
 
@@ -284,10 +296,10 @@ Run the CLI from source:
 dotnet run --project src/Vellum.Cli -- ocr sample.pdf
 ```
 
-PDF rasterisation uses PDFium via the
-[`bblanchon.PDFium.Linux`](https://www.nuget.org/packages/bblanchon.PDFium.Linux) /
-[`bblanchon.PDFium.Win32`](https://www.nuget.org/packages/bblanchon.PDFium.Win32)
-native packages. They're pulled in as transitive dependencies — nothing to clone, nothing to build.
+PDF rasterisation comes from the
+[`PDF2SVG.PopplerCairo.Bindings`](https://www.nuget.org/packages/PDF2SVG.PopplerCairo.Bindings)
+NuGet package (Poppler/Cairo-backed, ships prebuilt Win-x64 / Linux-x64 natives).
+It's pulled in as a transitive dependency — nothing to clone, nothing to build.
 
 ---
 
@@ -306,10 +318,8 @@ native packages. They're pulled in as transitive dependencies — nothing to clo
 - **Protobuf** — `PerformOCR` returns a serialised
   `chrome_screen_ai.VisualAnnotation` message; Vellum decodes it directly with
   a ~150-line wire-format parser, no `.proto` compilation step.
-- **PDF rasterisation** — PDFium renders each page directly into an opaque BGRA
-  `SKBitmap` at 300 DPI, capped to the engine's max dimension. Pages outside a
-  requested range are never rendered. (Earlier versions used Poppler/Cairo, whose
-  Type 3 font glyph caches are process-global and were never released.)
+- **PDF rasterisation** — pages are rendered to PNG via
+  `pdf2svg_poppler_cairo` then decoded into `SKBitmap` before OCR.
 
 ---
 
@@ -327,7 +337,7 @@ ocr_playground/
 │   │   ├── Models/OcrModels.cs       # records
 │   │   ├── Protobuf/VisualAnnotationParser.cs
 │   │   ├── Interop/                  # SkBitmap structs, native bindings, Linux stubs
-│   │   ├── Imaging/                  # SkiaSharp + PDFium rasteriser
+│   │   ├── Imaging/                  # SkiaSharp + pdf2svg wrappers
 │   │   ├── Download/ComponentDownloader.cs
 │   │   ├── Reporting/HtmlReportBuilder.cs
 │   │   └── Platform/PlatformPaths.cs
@@ -347,5 +357,8 @@ Vellum is MIT-licensed, matching the upstream Python project.
 - **Chrome screen-ai library** (`chrome_screen_ai.dll` /
   `libchromescreenai.so`): © Google, distributed as a Chrome component. Not
   redistributed by this package. See Chromium's licenses for terms of use.
-- **PDFium**: © The PDFium Authors, BSD-3-Clause / Apache-2.0; binaries from
-  [bblanchon/pdfium-binaries](https://github.com/bblanchon/pdfium-binaries).
+- **pdf2svg_poppler_cairo**:
+  [Forevka/pdf2svg_poppler_cairo](https://github.com/Forevka/pdf2svg_poppler_cairo),
+  bundling Poppler (GPL) and Cairo (LGPL) natives.
+- **PDFium** (optional rasterizer): © The PDFium Authors, BSD-3-Clause / Apache-2.0;
+  binaries from [bblanchon/pdfium-binaries](https://github.com/bblanchon/pdfium-binaries).

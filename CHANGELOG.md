@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.3.0 — PDF rasteriser replaced: Poppler/Cairo → PDFium
+## 0.3.0 — Optional PDFium rasteriser
 
 ### Why
 
@@ -25,31 +25,26 @@ On the incident document only the five pages that use Type 3 fonts (79, 80, 84,
 wrapper's own native code frees everything correctly; the retention is inside
 Poppler/Cairo.
 
-### Changed
+### Added
 
-- PDF pages are rendered with PDFium (`bblanchon.PDFium.Linux` /
-  `bblanchon.PDFium.Win32` 156.0.8066) via a small P/Invoke layer
-  (`Interop/PdfiumNative.cs`). `PdfRasterizer`'s signature is unchanged.
-- Pages are rendered directly into an opaque BGRA `SKBitmap` at 300 DPI, capped
-  to the engine's max dimension (2048 px) — no PNG encode/decode and no
-  separate downscale step.
-- Pages outside a requested page range are no longer rendered. (Previously every
-  page was rasterised and filtered afterwards.)
-- `RasterizedPdfPage.PointsWidth/PointsHeight` now hold the exact PDF page size
-  rather than a value derived from the bitmap.
+- `VellumOptions.PdfRasterizer` / `PdfRasterizerKind` selects the engine that renders
+  PDF pages before OCR (strategy: `IPdfRasterizer` with `Pdf2SvgRasterizer` and
+  `PdfiumRasterizer`).
+  - `Pdf2Svg` — **default**, Poppler/Cairo, behaviour unchanged.
+  - `Pdfium` — PDFium (`bblanchon.PDFium.Linux` / `bblanchon.PDFium.Win32`
+    156.0.8066) via a small P/Invoke layer (`Interop/PdfiumNative.cs`).
+- New `ScreenAI(modelDir, lightMode, log, pdfRasterizer)` constructor overload. The
+  existing constructor is unchanged and uses `Pdf2Svg`.
 
-### Removed
+With `Pdfium`, pages are rendered directly into an opaque BGRA `SKBitmap` at 300 DPI
+capped to the engine's max dimension (2048 px) — no PNG round-trip — and pages
+outside a requested page range are not rendered.
 
-- Dependency on `PDF2SVG.PopplerCairo.Bindings` (and with it the GPL Poppler
-  code and the 40+ bundled Windows DLLs).
-- `Pdf2SvgNativeResolver` and `build/Ocr.Vellum.targets` (only existed for the
-  pdf2svg native path).
-- The `VELLUM_RASTER_DUMP` debug switch (it served the old transparent-page
-  compositing).
+No breaking changes: existing callers keep the Poppler/Cairo path unless they opt in.
 
-### Measured (production documents, 4 GB container, linux/amd64)
+### Measured: `Pdf2Svg` vs `Pdfium` (production documents, 4 GB container, linux/amd64)
 
-| | 0.2.7 | 0.3.0 |
+| | `Pdf2Svg` (0.2.7 behaviour) | `Pdfium` |
 |---|---|---|
 | 167-page document, rendering only: peak / retained | 3.1 GB / 1.26 GB, growing per pass | 200 MB / 3 MB, flat |
 | All 30 distinct documents with OCR in one process | OOM-killed on document 13 | all complete; process peak 1.6 GB; native heap stays 200–530 MB |
@@ -63,3 +58,6 @@ Text differences are mostly block ordering plus a few words either way.
 - `OcrBitmap` disposes the caller's bitmap when it has to be downscaled.
 - `SkiaImageOps.ToBgraBytes` leaks a temporary bitmap when it converts the pixel format.
 - Windows has not been tested with the PDFium backend yet.
+- The `Pdf2Svg` path still retains memory on PDFs with Type 3 fonts; fixing it needs
+  changes to the native pdf2svg wrapper (e.g. rasterising via Poppler's Splash backend
+  instead of Cairo) or a newer Poppler/Cairo build.
