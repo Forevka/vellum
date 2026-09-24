@@ -39,9 +39,4 @@
     <None Include="..\..\README.md" Pack="true" PackagePath="\" Visible="false" />
   </ItemGroup>
 
-  <!-- Local dev: NuGet auto-imports this from `build/<pkg>.targets` on real
-       consumers, but a sibling ProjectReference doesn't trigger that, so we
-       import it explicitly here.  Fixes the DllImport path for pdf2svgwrapper. -->
-  <Import Project="..\Vellum\build\Ocr.Vellum.targets" />
-
 </Project>

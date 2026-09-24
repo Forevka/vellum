@@ -284,10 +284,10 @@ Run the CLI from source:
 dotnet run --project src/Vellum.Cli -- ocr sample.pdf
 ```
 
-PDF rasterisation comes from the
-[`PDF2SVG.PopplerCairo.Bindings`](https://www.nuget.org/packages/PDF2SVG.PopplerCairo.Bindings)
-NuGet package (Poppler/Cairo-backed, ships prebuilt Win-x64 / Linux-x64 natives).
-It's pulled in as a transitive dependency — nothing to clone, nothing to build.
+PDF rasterisation uses PDFium via the
+[`bblanchon.PDFium.Linux`](https://www.nuget.org/packages/bblanchon.PDFium.Linux) /
+[`bblanchon.PDFium.Win32`](https://www.nuget.org/packages/bblanchon.PDFium.Win32)
+native packages. They're pulled in as transitive dependencies — nothing to clone, nothing to build.
 
 ---
 
@@ -306,8 +306,10 @@ It's pulled in as a transitive dependency — nothing to clone, nothing to build
 - **Protobuf** — `PerformOCR` returns a serialised
   `chrome_screen_ai.VisualAnnotation` message; Vellum decodes it directly with
   a ~150-line wire-format parser, no `.proto` compilation step.
-- **PDF rasterisation** — pages are rendered to PNG via
-  `pdf2svg_poppler_cairo` then decoded into `SKBitmap` before OCR.
+- **PDF rasterisation** — PDFium renders each page directly into an opaque BGRA
+  `SKBitmap` at 300 DPI, capped to the engine's max dimension. Pages outside a
+  requested range are never rendered. (Earlier versions used Poppler/Cairo, whose
+  Type 3 font glyph caches are process-global and were never released.)
 
 ---
 
@@ -325,7 +327,7 @@ ocr_playground/
 │   │   ├── Models/OcrModels.cs       # records
 │   │   ├── Protobuf/VisualAnnotationParser.cs
 │   │   ├── Interop/                  # SkBitmap structs, native bindings, Linux stubs
-│   │   ├── Imaging/                  # SkiaSharp + pdf2svg wrappers
+│   │   ├── Imaging/                  # SkiaSharp + PDFium rasteriser
 │   │   ├── Download/ComponentDownloader.cs
 │   │   ├── Reporting/HtmlReportBuilder.cs
 │   │   └── Platform/PlatformPaths.cs
@@ -345,6 +347,5 @@ Vellum is MIT-licensed, matching the upstream Python project.
 - **Chrome screen-ai library** (`chrome_screen_ai.dll` /
   `libchromescreenai.so`): © Google, distributed as a Chrome component. Not
   redistributed by this package. See Chromium's licenses for terms of use.
-- **pdf2svg_poppler_cairo**:
-  [Forevka/pdf2svg_poppler_cairo](https://github.com/Forevka/pdf2svg_poppler_cairo),
-  bundling Poppler (GPL) and Cairo (LGPL) natives.
+- **PDFium**: © The PDFium Authors, BSD-3-Clause / Apache-2.0; binaries from
+  [bblanchon/pdfium-binaries](https://github.com/bblanchon/pdfium-binaries).

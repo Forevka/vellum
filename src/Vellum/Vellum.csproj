@@ -12,7 +12,7 @@
     <!-- PackageId differs from AssemblyName: "Vellum" was already taken on nuget.org.
          Namespace and `using Vellum;` stay unchanged — only the install-time name shifts. -->
     <PackageId>Ocr.Vellum</PackageId>
-    <Version>0.2.7</Version>
+    <Version>0.3.0</Version>
     <Title>Vellum — Chrome screen-ai OCR wrapper for .NET</Title>
     <Description>
       Direct wrapper around Chrome's screen-ai OCR DLL (chrome_screen_ai.dll / libchromescreenai.so).
@@ -24,7 +24,7 @@
 
     <!-- The chrome_screen_ai DLL itself is NOT redistributed; the consumer either
          already has Chrome installed, or runs `vellum download` to copy it from
-         their own Chrome install.  Only the pdf2svg + chromium-stub natives ship. -->
+         their own Chrome install.  Only the chromium-stub native ships (PDFium comes from bblanchon.PDFium.*). -->
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
@@ -34,7 +34,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="PDF2SVG.PopplerCairo.Bindings" Version="1.0.2" />
+    <PackageReference Include="bblanchon.PDFium.Linux" Version="156.0.8066" />
+    <PackageReference Include="bblanchon.PDFium.Win32" Version="156.0.8066" />
     <PackageReference Include="SkiaSharp" Version="3.116.1" />
     <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="3.116.1" />
     <PackageReference Include="SkiaSharp.NativeAssets.Win32" Version="3.116.1" />
@@ -58,13 +59,6 @@
 
   <ItemGroup>
     <None Include="..\..\README.md" Pack="true" PackagePath="\" Visible="false" />
-  </ItemGroup>
-
-  <!-- Ship an MSBuild targets file that fixes up the pdf2svgwrapper native
-       path in downstream consumers. See build\Ocr.Vellum.targets for details. -->
-  <ItemGroup>
-    <None Include="build\Ocr.Vellum.targets" Pack="true" PackagePath="build\Ocr.Vellum.targets" Visible="false" />
-    <None Include="build\Ocr.Vellum.targets" Pack="true" PackagePath="buildTransitive\Ocr.Vellum.targets" Visible="false" />
   </ItemGroup>
 
   <!-- Target: on Linux build hosts, compile the stub .so if it's missing. -->
